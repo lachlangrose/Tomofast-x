@@ -295,7 +295,7 @@ end subroutine sparse_matrix_add_empty_rows
 !=========================================================================
 ! Computes the product between the sparse matrix and vector x: b = Ax.
 !=========================================================================
-pure subroutine sparse_matrix_mult_vector(this, x, b)
+subroutine sparse_matrix_mult_vector(this, x, b)
   class(t_sparse_matrix), intent(in) :: this
   real(kind=CUSTOM_REAL), intent(in) :: x(this%ncolumns)
 
@@ -310,7 +310,7 @@ end subroutine sparse_matrix_mult_vector
 ! Computes the product between the sparse matrix and vector x,
 ! and adds the result as: b = b + Ax.
 !=========================================================================
-pure subroutine sparse_matrix_add_mult_vector(this, x, b)
+subroutine sparse_matrix_add_mult_vector(this, x, b)
   class(t_sparse_matrix), intent(in) :: this
   real(kind=CUSTOM_REAL), intent(in) :: x(this%ncolumns)
 
@@ -319,6 +319,7 @@ pure subroutine sparse_matrix_add_mult_vector(this, x, b)
   integer :: i, i_all
   integer(kind=8) :: k
 
+!$omp parallel do private(i_all, k) schedule(static)
   do i = 1, this%nl_nonempty
     i_all = this%rowptr(i)
     do k = this%ijl(i), this%ijl(i + 1) - 1
@@ -354,6 +355,7 @@ subroutine sparse_matrix_part_mult_vector(this, nelements, x, ndata, b, line_sta
 
   b = 0._CUSTOM_REAL
 
+!$omp parallel do private(i_all, l, k) schedule(static)
   do i = 1, this%nl_nonempty
     i_all = this%rowptr(i)
     if (i_all >= line_start .and. i_all <= line_end) then
@@ -370,7 +372,7 @@ end subroutine sparse_matrix_part_mult_vector
 ! Computes the product between the transpose of sparse matrix and vector x:
 ! b = A'x.
 !============================================================================
-pure subroutine sparse_matrix_trans_mult_vector(this, x, b)
+subroutine sparse_matrix_trans_mult_vector(this, x, b)
   class(t_sparse_matrix), intent(in) :: this
   real(kind=CUSTOM_REAL), intent(in) :: x(this%nl)
 
@@ -385,7 +387,7 @@ end subroutine sparse_matrix_trans_mult_vector
 ! Computes the product between the transpose of sparse matrix and vector x,
 ! and adds the result as: b = b + A'x.
 !============================================================================
-pure subroutine sparse_matrix_add_trans_mult_vector(this, x, b)
+subroutine sparse_matrix_add_trans_mult_vector(this, x, b)
   class(t_sparse_matrix), intent(in) :: this
   real(kind=CUSTOM_REAL), intent(in) :: x(this%nl)
 
@@ -394,10 +396,12 @@ pure subroutine sparse_matrix_add_trans_mult_vector(this, x, b)
   integer :: i, j, i_all
   integer(kind=8) :: k
 
+!$omp parallel do private(i_all, j, k) schedule(static)
   do i = 1, this%nl_nonempty
     i_all = this%rowptr(i)
     do k = this%ijl(i), this%ijl(i + 1) - 1
       j = this%ija(k)
+!$omp atomic
       b(j) = b(j) + this%sa(k) * x(i_all)
     enddo
   enddo
