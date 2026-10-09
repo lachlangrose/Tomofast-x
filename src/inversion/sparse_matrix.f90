@@ -396,12 +396,13 @@ subroutine sparse_matrix_add_trans_mult_vector(this, x, b)
   integer :: i, j, i_all
   integer(kind=8) :: k
 
-!$omp parallel do private(i_all, j, k) schedule(static)
+  ! Each thread accumulates into its own copy of b, which are summed at the end.
+  ! This avoids an atomic update for every non-zero element (very slow due to contention).
+!$omp parallel do private(i_all, j, k) schedule(static) reduction(+:b)
   do i = 1, this%nl_nonempty
     i_all = this%rowptr(i)
     do k = this%ijl(i), this%ijl(i + 1) - 1
       j = this%ija(k)
-!$omp atomic
       b(j) = b(j) + this%sa(k) * x(i_all)
     enddo
   enddo
